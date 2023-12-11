@@ -55,19 +55,54 @@ class PBFTProtocol(ConsensusProtocol):
         if self.is_prepared(block_hash): 
             commit_message = {"type": "commit", "block": message}
             self.node.broadcast_message(commit_message)
+            print(f"Node {self.node_id} prepared block to {self.node.peers}")
+        else:
+            print(f"Node {self.node_id} waiting for more prepares for block {block_hash}")
 
-
-    def commit(self, message):
-        print(f"Node {self.node_id} received commit for block {message}")
-        block_hash = message["current_hash"]
+    def commit(self, block_data):
+        print(f"Node {self.node_id} received commit for block {block_data}")
+        block_hash = block_data["current_hash"]
 
         if block_hash not in self.commit_counts: 
             self.commit_counts[block_hash] = 0
         self.commit_counts[block_hash] += 1
 
-        if self.can_commit(block_hash): 
-            print("COMMITING")
+        if self.can_commit(block_hash):
+            print(f"Node {self.node_id} committing block {block_hash}")
 
+            # Ajoutez le bloc à la blockchain
+            if self.validate_block(block_data):
+                block = Block(
+                    index=block_data["index"],
+                    timestamp=block_data["timestamp"],
+                    data=block_data["data"],
+                    previous_hash=block_data["previous_hash"]
+                )
+                self.blockchain.add_block(block)
+                print(f"Node {self.node_id} committed block {block_hash}")
+            else:
+                print("Invalid block. Discarding commit.")
+        else:
+            print(f"Node {self.node_id} waiting for more commits for block {block_hash}")
+
+    def validate_block(self, block_data):
+        # Vérifiez l'intégrité du bloc
+        if "index" not in block_data or "timestamp" not in block_data \
+                or "data" not in block_data or "previous_hash" not in block_data:
+            return False
+
+        # Vérifiez que l'index est correctement incrémenté
+        if block_data["index"] != len(self.blockchain.blocks):
+            return False
+
+        # Vérifiez la validité du hachage précédent
+        previous_block = self.blockchain.blocks[-1] if self.blockchain.blocks else None
+        if previous_block and block_data["previous_hash"] != previous_block.current_hash:
+            return False
+
+        # Vous pouvez ajouter d'autres vérifications selon les besoins (par exemple, vérification de la signature)
+
+        return True
 
     def create_block_from_request(self, content):
         previous_blocks = self.blockchain.blocks
@@ -81,8 +116,8 @@ class PBFTProtocol(ConsensusProtocol):
         return new_block
     
     def is_prepared(self, id):
-        return self.prepare_counts[id] >= 1
+        return self.prepare_counts[id] >= 2
 
     def can_commit(self, id):
-        return self.commit_counts[id] >= 1
+        return self.commit_counts[id] >= 2
 

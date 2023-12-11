@@ -1,3 +1,17 @@
-pip install -r requirements.txt
+# Python consensus protocols
 
-python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. pbft.proto
+![Cirrus CI - Build Status](https://img.shields.io/cirrus/github/Tanguyvans/consensus_protocols/main?label=build)
+
+Description brève de votre projet.
+
+## Table des Matières
+
+- [Installation](#installation)
+- [Utilisation](#utilisation)
+- [Exemples](#exemples)
+- [Contributions](#contributions)
+- [Licence](#licence)
+- [Auteurs](#auteurs)
+- [Contact](#contact)
+
+## Installation
