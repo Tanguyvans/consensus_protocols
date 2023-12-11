@@ -40,7 +40,6 @@ class Block:
             "current_hash": self.current_hash
         }
 
-
 if __name__ == "__main__": 
     block_instance = Block(index=1, timestamp="1234567890", data="Sample Data", previous_hash="0")
     block_dict = block_instance.to_dict()
