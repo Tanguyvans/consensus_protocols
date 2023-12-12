@@ -1,3 +1,5 @@
+import time
+
 from block import Block
 from consensus_protocol import ConsensusProtocol
 
@@ -14,26 +16,40 @@ class PBFTProtocol(ConsensusProtocol):
     def handle_message(self, message):
         message_type = message.get("type")
 
+        print("message", message)
+
+        if message["id"] not in self.node.peers: 
+            return  
+
+        public_key = self.node.peers[message["id"]]["public_key"]
+        msg = {"type": message["type"], "content": message["content"]}
+        is_valid_signature = self.node.verify_signature(message["signature"], msg, public_key)
+
+        if not is_valid_signature: 
+            print(f"Not valid signature {message}")
+            return 
+
+        print(f"Is valid signature: {is_valid_signature}")     
+
         if message_type == "request":
-            self.request(message["message"])
+            time.sleep(3)
+            self.request(message["content"])
         elif message_type == "pre-prepare":
-            self.pre_prepare(message["block"])
+            time.sleep(3)
+            self.pre_prepare(message["content"])
         elif message_type == "prepare":
-            self.prepare(message["block"])
+            time.sleep(3)
+            self.prepare(message["content"])
         elif message_type == "commit":
-            self.commit(message["block"])
+            time.sleep(3)
+            self.commit(message["content"])
         else:
             print(f"Unknown message type: {message_type}")
 
     def request(self, content):
-        # Implémentez la logique de la phase request pour PBFT
-        print(f"Node {self.node_id} received request with content: {content}")
-        # Créez un bloc à partir de la demande et déclenchez la phase pre-prepare
         block = self.create_block_from_request(content)
-
-        message = {"type": "pre-prepare", "block": block.to_dict()}
+        message = {"type": "pre-prepare", "content": block.to_dict()}
         self.node.broadcast_message(message)
-        self.handle_message(message)
 
     def pre_prepare(self, message):
         print(f"Node {self.node_id} received pre-prepare for block: \n{message}")
@@ -42,7 +58,7 @@ class PBFTProtocol(ConsensusProtocol):
 
         self.prepare_counts[message["current_hash"]] = 0
 
-        message = {"type": "prepare", "block": block.to_dict()}
+        message = {"type": "prepare", "content": block.to_dict()}
         self.node.broadcast_message(message)
 
     def prepare(self, message):
@@ -53,7 +69,7 @@ class PBFTProtocol(ConsensusProtocol):
         self.prepare_counts[block_hash] += 1
 
         if self.is_prepared(block_hash): 
-            commit_message = {"type": "commit", "block": message}
+            commit_message = {"type": "commit", "content": message}
             self.node.broadcast_message(commit_message)
             print(f"Node {self.node_id} prepared block to {self.node.peers}")
         else:
@@ -116,7 +132,7 @@ class PBFTProtocol(ConsensusProtocol):
         return new_block
     
     def is_prepared(self, id):
-        return self.prepare_counts[id] >= 2
+        return self.prepare_counts[id] >= 1
 
     def can_commit(self, id):
         return self.commit_counts[id] >= 2
