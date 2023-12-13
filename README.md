@@ -1,8 +1,9 @@
 # Python consensus protocols
 
 ![Build Status](https://github.com/Tanguyvans/consensus_protocols/actions/workflows/ci.yml/badge.svg)
-
-![Python Logo](https://www.python.org/static/img/python-logo.png)
+![Python](https://img.shields.io/badge/language-Python-blue)
+![Coverage](https://img.shields.io/badge/coverage-33%25-brightgreen)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 This project aims to provide a simple way to visualize and interact with various consensus protocols implemented in Python. The included protocols are designed to facilitate understanding and exploration of their mechanisms. It's important to note that these implementations are intended for educational purposes and are not meant for direct production use.
 
