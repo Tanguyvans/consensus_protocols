@@ -42,7 +42,7 @@ class PBFTProtocol(ConsensusProtocol):
             self.prepare(message["content"])
         elif message_type == "commit":
             time.sleep(3)
-            self.commit(message["content"])
+            self.commit(message['id'],message["content"])
         else:
             print(f"Unknown message type: {message_type}")
 
@@ -75,24 +75,28 @@ class PBFTProtocol(ConsensusProtocol):
         else:
             print(f"Node {self.node_id} waiting for more prepares for block {block_hash}")
 
-    def commit(self, block_data):
-        print(f"Node {self.node_id} received commit for block {block_data}")
-        block_hash = block_data["current_hash"]
+    def commit(self, sender, message):
+        print(f"Node {self.node_id} received commit for block {message}")
+        block_hash = message["current_hash"]
 
         if block_hash not in self.commit_counts: 
-            self.commit_counts[block_hash] = 0
-        self.commit_counts[block_hash] += 1
+            self.commit_counts[block_hash] = {"count": 0, "senders": []}
+
+        if sender not in self.commit_counts[block_hash]["senders"]: 
+            self.commit_counts[block_hash]["count"] += 1
+            self.commit_counts[block_hash]["senders"].append(sender)
+
 
         if self.can_commit(block_hash):
             print(f"Node {self.node_id} committing block {block_hash}")
 
             # Ajoutez le bloc à la blockchain
-            if self.validate_block(block_data):
+            if self.validate_block(message):
                 block = Block(
-                    index=block_data["index"],
-                    timestamp=block_data["timestamp"],
-                    data=block_data["data"],
-                    previous_hash=block_data["previous_hash"]
+                    index=message["index"],
+                    timestamp=message["timestamp"],
+                    data=message["data"],
+                    previous_hash=message["previous_hash"]
                 )
                 self.blockchain.add_block(block)
                 print(f"Node {self.node_id} committed block {block_hash}")
@@ -135,5 +139,5 @@ class PBFTProtocol(ConsensusProtocol):
         return self.prepare_counts[id] >= 1
 
     def can_commit(self, id):
-        return self.commit_counts[id] >= 2
+        return self.commit_counts[id]["count"] >= 2
 
