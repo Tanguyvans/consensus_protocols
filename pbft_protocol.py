@@ -1,4 +1,5 @@
 import time
+import logging
 
 from block import Block
 from consensus_protocol import ConsensusProtocol
@@ -16,8 +17,6 @@ class PBFTProtocol(ConsensusProtocol):
     def handle_message(self, message):
         message_type = message.get("type")
 
-        print("message", message)
-
         if message["id"] not in self.node.peers: 
             return  
 
@@ -26,25 +25,21 @@ class PBFTProtocol(ConsensusProtocol):
         is_valid_signature = self.node.verify_signature(message["signature"], msg, public_key)
 
         if not is_valid_signature: 
-            print(f"Not valid signature {message}")
+            logging.warning("Not valid signature: %s", message)
             return 
 
-        print(f"Is valid signature: {is_valid_signature}")     
+        logging.info("Valid signature: %s", is_valid_signature)    
 
         if message_type == "request":
-            time.sleep(3)
             self.request(message["content"])
         elif message_type == "pre-prepare":
-            time.sleep(3)
             self.pre_prepare(message["content"])
         elif message_type == "prepare":
-            time.sleep(3)
             self.prepare(message["content"])
         elif message_type == "commit":
-            time.sleep(3)
             self.commit(message['id'],message["content"])
         else:
-            print(f"Unknown message type: {message_type}")
+            logging.warning("Unknown message type: %s", message_type)
 
     def request(self, content):
         block = self.create_block_from_request(content)
@@ -52,7 +47,7 @@ class PBFTProtocol(ConsensusProtocol):
         self.node.broadcast_message(message)
 
     def pre_prepare(self, message):
-        print(f"Node {self.node_id} received pre-prepare for block: \n{message}")
+        logging.info("Node %s received pre-prepare for block: \n%s", self.node_id, message)
 
         block = Block(message["index"], message["timestamp"], message["data"], message["previous_hash"])
 
@@ -62,7 +57,7 @@ class PBFTProtocol(ConsensusProtocol):
         self.node.broadcast_message(message)
 
     def prepare(self, message):
-        print(f"Node {self.node_id} received prepare for block {message}")
+        logging.info("Node %s received prepare for block %s", self.node_id, message)
         block_hash = message["current_hash"]
         if block_hash not in self.prepare_counts: 
             self.prepare_counts[block_hash] = 0
@@ -71,12 +66,12 @@ class PBFTProtocol(ConsensusProtocol):
         if self.is_prepared(block_hash): 
             commit_message = {"type": "commit", "content": message}
             self.node.broadcast_message(commit_message)
-            print(f"Node {self.node_id} prepared block to {self.node.peers}")
+            logging.info("Node %s prepared block to %s", self.node_id, self.node.peers)
         else:
-            print(f"Node {self.node_id} waiting for more prepares for block {block_hash}")
+            logging.info("Node %s waiting for more prepares for block %s", self.node_id, block_hash)
 
     def commit(self, sender, message):
-        print(f"Node {self.node_id} received commit for block {message}")
+        logging.info("Node %s received commit for block %s", self.node_id, message)
         block_hash = message["current_hash"]
 
         if block_hash not in self.commit_counts: 
@@ -86,9 +81,8 @@ class PBFTProtocol(ConsensusProtocol):
             self.commit_counts[block_hash]["count"] += 1
             self.commit_counts[block_hash]["senders"].append(sender)
 
-
         if self.can_commit(block_hash):
-            print(f"Node {self.node_id} committing block {block_hash}")
+            logging.info("Node %s committing block %s", self.node_id, block_hash)
 
             # Ajoutez le bloc à la blockchain
             if self.validate_block(message):
@@ -99,11 +93,11 @@ class PBFTProtocol(ConsensusProtocol):
                     previous_hash=message["previous_hash"]
                 )
                 self.blockchain.add_block(block)
-                print(f"Node {self.node_id} committed block {block_hash}")
+                logging.info("Node %s committed block %s", self.node_id, block_hash)
             else:
-                print("Invalid block. Discarding commit.")
+                logging.warning("Invalid block. Discarding commit.")
         else:
-            print(f"Node {self.node_id} waiting for more commits for block {block_hash}")
+            logging.info("Node %s waiting for more commits for block %s", self.node_id, block_hash)
 
     def validate_block(self, block_data):
         # Vérifiez l'intégrité du bloc
@@ -119,9 +113,7 @@ class PBFTProtocol(ConsensusProtocol):
         previous_block = self.blockchain.blocks[-1] if self.blockchain.blocks else None
         if previous_block and block_data["previous_hash"] != previous_block.current_hash:
             return False
-
-        # Vous pouvez ajouter d'autres vérifications selon les besoins (par exemple, vérification de la signature)
-
+        
         return True
 
     def create_block_from_request(self, content):

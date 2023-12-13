@@ -1,6 +1,8 @@
-# test.py
+import logging
 from node import Node
 import threading
+
+logging.basicConfig(level=logging.DEBUG)
 
 if __name__ == "__main__":
 
