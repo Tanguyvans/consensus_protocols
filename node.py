@@ -1,6 +1,7 @@
 import socket
 import threading
 import json
+import os
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -11,8 +12,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 
 import base64
 
-from pbft_protocol import PBFTProtocol
-from consensus_protocol import ConsensusProtocol
+from protocols.pbft_protocol import PBFTProtocol
+from protocols.consensus_protocol import ConsensusProtocol
 from blockchain import Blockchain
 from block import Block
 
@@ -28,12 +29,10 @@ class Node:
         if consensus_protocol == "pbft": 
             self.consensus_protocol = PBFTProtocol(node=self, blockchain=self.blockchain)
 
-        self.private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
-        )
-        self.public_key = self.private_key.public_key()
+        private_key_path = f"keys/{node_id}_private_key.pem"
+        public_key_path = f"keys/{node_id}_public_key.pem"
+
+        self.getKeys(private_key_path, public_key_path)
 
     def sign_message(self, message):
         signature = self.private_key.sign(
@@ -102,6 +101,48 @@ class Node:
         else:
             print(f"Peer {peer_id} not found.")
 
-    def add_peer(self, peer_id, peer_address, public_key):
+    def add_peer(self, peer_id, peer_address):
+        with open(f"keys/{peer_id}_public_key.pem", 'rb') as f:
+            public_key = serialization.load_pem_public_key(
+                f.read(),
+                backend=default_backend()
+            )
+
         self.peers[peer_id] = {"address": peer_address, "public_key": public_key}
 
+    def getKeys(self, private_key_path, public_key_path): 
+        if os.path.exists(private_key_path) and os.path.exists(public_key_path):
+            with open(private_key_path, 'rb') as f:
+                self.private_key = serialization.load_pem_private_key(
+                    f.read(),
+                    password=None,
+                    backend=default_backend()
+                )
+
+            with open(public_key_path, 'rb') as f:
+                self.public_key = serialization.load_pem_public_key(
+                    f.read(),
+                    backend=default_backend()
+                )
+        else:
+            # Generate new keys
+            self.private_key = rsa.generate_private_key(
+                public_exponent=65537,
+                key_size=2048,
+                backend=default_backend()
+            )
+            self.public_key = self.private_key.public_key()
+
+            # Save keys to files
+            with open(private_key_path, 'wb') as f:
+                f.write(self.private_key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=serialization.NoEncryption()
+                ))
+
+            with open(public_key_path, 'wb') as f:
+                f.write(self.public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo
+                ))

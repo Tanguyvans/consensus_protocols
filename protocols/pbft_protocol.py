@@ -2,7 +2,7 @@ import time
 import logging
 
 from block import Block
-from consensus_protocol import ConsensusProtocol
+from protocols.consensus_protocol import ConsensusProtocol
 
 class PBFTProtocol(ConsensusProtocol):
     def __init__(self, node, blockchain):
@@ -17,6 +17,10 @@ class PBFTProtocol(ConsensusProtocol):
     def handle_message(self, message):
         message_type = message.get("type")
 
+        if message_type == "request":
+            self.request(message["content"])
+            return 
+
         if message["id"] not in self.node.peers: 
             return  
 
@@ -30,9 +34,7 @@ class PBFTProtocol(ConsensusProtocol):
 
         logging.info("Valid signature: %s", is_valid_signature)    
 
-        if message_type == "request":
-            self.request(message["content"])
-        elif message_type == "pre-prepare":
+        if message_type == "pre-prepare":
             self.pre_prepare(message["content"])
         elif message_type == "prepare":
             self.prepare(message["content"])
