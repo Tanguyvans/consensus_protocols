@@ -2,6 +2,7 @@ import socket
 import threading
 import json
 import os
+import time
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -13,6 +14,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 import base64
 
 from protocols.pbft_protocol import PBFTProtocol
+from protocols.raft_protocol import RaftProtocol
 from protocols.consensus_protocol import ConsensusProtocol
 from blockchain import Blockchain
 from block import Block
@@ -28,6 +30,9 @@ class Node:
 
         if consensus_protocol == "pbft": 
             self.consensus_protocol = PBFTProtocol(node=self, blockchain=self.blockchain)
+        elif consensus_protocol == "raft": 
+            self.consensus_protocol = RaftProtocol(node=self, blockchain=self.blockchain)
+            threading.Thread(target=self.consensus_protocol.run).start()
 
         private_key_path = f"keys/{node_id}_private_key.pem"
         public_key_path = f"keys/{node_id}_public_key.pem"
@@ -146,3 +151,45 @@ class Node:
                     encoding=serialization.Encoding.PEM,
                     format=serialization.PublicFormat.SubjectPublicKeyInfo
                 ))
+
+if __name__ == "__main__":
+    port_node_1 = 5010
+    port_node_2 = 5011
+    port_node_3 = 5012
+
+    node1 = Node(node_id="N0", host="localhost", port=port_node_1, consensus_protocol="raft")
+    node2 = Node(node_id="N1", host="localhost", port=port_node_2, consensus_protocol="raft")
+    node3 = Node(node_id="N2", host="localhost", port=port_node_3, consensus_protocol="raft")
+
+    node1.add_peer(peer_id="N1", peer_address=("localhost", port_node_2))
+    node1.add_peer(peer_id="N2", peer_address=("localhost", port_node_3))
+
+    node2.add_peer(peer_id="N0", peer_address=("localhost", port_node_1))
+    node2.add_peer(peer_id="N2", peer_address=("localhost", port_node_3))
+
+    node3.add_peer(peer_id="N0", peer_address=("localhost", port_node_1))
+    node3.add_peer(peer_id="N1", peer_address=("localhost", port_node_2))
+
+    threading.Thread(target=node1.start_server).start()
+    threading.Thread(target=node2.start_server).start()
+    threading.Thread(target=node3.start_server).start()
+
+
+    time.sleep(20)
+
+    print("client sending")
+    message_from_node1 = {"type": "client_request", "content": "hello"}
+    node2.send_message(peer_id="N0", message=message_from_node1)
+
+    time.sleep(5)
+    message_from_node1 = {"type": "client_request", "content": "testing"}
+    node1.send_message(peer_id="N1", message=message_from_node1)
+
+    time.sleep(5)
+    message_from_node1 = {"type": "client_request", "content": "tanguy"}
+    node2.send_message(peer_id="N0", message=message_from_node1)
+
+    time.sleep(5)
+    print(node1.consensus_protocol.log)
+    print(node2.consensus_protocol.log)
+    print(node3.consensus_protocol.log)
