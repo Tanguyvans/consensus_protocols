@@ -79,7 +79,13 @@ class RaftProtocol:
 
         # Process the log entries from the leader
         if entries:
-            self.log.extend(entries)
+            block = Block(
+                index=entries[-1]["index"],
+                timestamp=entries[-1]["timestamp"],
+                data=entries[-1]["data"],
+                previous_hash=entries[-1]["previous_hash"]
+            )
+            self.blockchain.add_block(block)
 
         # Send a response to the leader
         response = {
@@ -95,10 +101,6 @@ class RaftProtocol:
         if self.state == "leader":
             # If this node is the leader, process the client request
             self.process_client_request(message)
-        else:
-            if self.leader_id is not None:
-                print("sent message")
-                self.node.send_message(self.leader_id, {"type": "client_request", "message": message})
 
     def handle_vote_response(self, message):
         vote_granted = message.get("vote_granted")
@@ -122,14 +124,6 @@ class RaftProtocol:
             print(f"Node {self.node_id} has received a majority of votes. Becoming leader.")
             self.state = "leader"
 
-    def request_vote(self, candidate_id, candidate_term):
-        # Implement RequestVote RPC
-        pass
-
-    def append_entries(self, leader_id, leader_term, entries):
-        # Implement AppendEntries RPC
-        pass
-
     def start_election(self):
         logging.info("Node %s is starting an election for term %s", self.node_id, self.current_term + 1)
 
@@ -150,27 +144,21 @@ class RaftProtocol:
         self.node.broadcast_message(request_vote_message)
 
     def process_client_request(self, client_request):
-        # Assuming client_request is a dictionary representing the client's request
-        entry = {
-            "term": self.current_term,
-            "command": client_request.get("command"),
-            # Add any other relevant information from the client request
-        }
+        previous_blocks = self.blockchain.blocks
 
         block = Block(
-            index=message["index"],
-            timestamp=message["timestamp"],
-            data=message["data"],
-            previous_hash=message["previous_hash"]
+            index= self.current_term,
+            timestamp= "1111",
+            data= client_request.get("content"),
+            previous_hash= previous_blocks[-1].current_hash
         )
         self.blockchain.add_block(block)
 
-        # Replicate the log entry to other nodes
         append_entries_message = {
             "type": "append_entries",
             "leader_id": self.node_id,
             "leader_term": self.current_term,
-            "entries": [entry],  # Include the new log entry
+            "entries": [block.to_dict()],  # Include the new log entry
         }
 
         # Broadcast the append_entries_message to other nodes

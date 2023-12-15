@@ -14,4 +14,4 @@ if __name__ == "__main__":
         if msg == "q":
             break
 
-        send_message("localhost", node, {"type": "request", "content": msg})
+        send_message("localhost", node, {"type": "client_request", "content": msg})

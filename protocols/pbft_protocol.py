@@ -17,7 +17,7 @@ class PBFTProtocol(ConsensusProtocol):
     def handle_message(self, message):
         message_type = message.get("type")
 
-        if message_type == "request":
+        if message_type == "client_request":
             self.request(message["content"])
             return 
 

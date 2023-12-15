@@ -179,17 +179,6 @@ if __name__ == "__main__":
 
     print("client sending")
     message_from_node1 = {"type": "client_request", "content": "hello"}
+    node1.send_message(peer_id="N2", message=message_from_node1)
     node2.send_message(peer_id="N0", message=message_from_node1)
-
-    time.sleep(5)
-    message_from_node1 = {"type": "client_request", "content": "testing"}
-    node1.send_message(peer_id="N1", message=message_from_node1)
-
-    time.sleep(5)
-    message_from_node1 = {"type": "client_request", "content": "tanguy"}
-    node2.send_message(peer_id="N0", message=message_from_node1)
-
-    time.sleep(5)
-    print(node1.consensus_protocol.log)
-    print(node2.consensus_protocol.log)
-    print(node3.consensus_protocol.log)
+    node3.send_message(peer_id="N1", message=message_from_node1)

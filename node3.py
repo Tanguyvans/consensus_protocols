@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.DEBUG)
 if __name__ == "__main__":
     port_node = 5012
 
-    node = Node(node_id="N2", host="localhost", port=port_node, consensus_protocol="pbft")
+    node = Node(node_id="N2", host="localhost", port=port_node, consensus_protocol="raft")
 
     while True:
         msg = input("Press yes if you are ready to add nodes: ")
