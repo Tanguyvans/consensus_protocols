@@ -40,6 +40,12 @@ class RaftProtocol:
             self.handle_append_entries(message)
         elif message_type == "client_request":
             self.handle_client_request(message)
+        elif message_type == "sync_blockchain":
+            print(message)
+            self.handle_sync_blockchain(message)
+        elif message_type == "sync_request":
+            print("received sync request")
+            self.handle_sync_request(message)
 
     def handle_request_vote(self, message):
         candidate_id = message.get("candidate_id")
@@ -79,13 +85,20 @@ class RaftProtocol:
 
         # Process the log entries from the leader
         if entries:
-            block = Block(
-                index=entries[-1]["index"],
-                timestamp=entries[-1]["timestamp"],
-                data=entries[-1]["data"],
-                previous_hash=entries[-1]["previous_hash"]
-            )
-            self.blockchain.add_block(block)
+            # Check if synchronization is needed based on the index of the last block
+            last_block_index = entries[-1]["index"]
+            if last_block_index-1 > self.blockchain.get_last_block_index():
+                print("must request sync")
+                # Synchronize blockchain
+                self.request_sync_blockchain(self.leader_id)
+            else: 
+                block = Block(
+                    index=entries[-1]["index"],
+                    timestamp=entries[-1]["timestamp"],
+                    data=entries[-1]["data"],
+                    previous_hash=entries[-1]["previous_hash"]
+                )
+                self.blockchain.add_block(block)
 
         # Send a response to the leader
         response = {
@@ -123,6 +136,30 @@ class RaftProtocol:
         if self.votes_received > self.total_nodes // 2:
             print(f"Node {self.node_id} has received a majority of votes. Becoming leader.")
             self.state = "leader"
+
+    def handle_sync_request(self, message):
+        requester_id = message.get("requester_id")
+        self.sync_blockchain(requester_id)
+
+    def handle_sync_blockchain(self, message):
+        print("sync")
+        received_blocks = message.get("blocks", [])
+        
+        # Obtenir l'index du dernier bloc dans la blockchain locale
+        last_local_index = self.blockchain.get_last_block_index()
+
+        for block_data in received_blocks:
+            block_index = block_data["index"]
+
+            # Ajouter le bloc uniquement s'il est manquant dans la blockchain locale
+            if block_index > last_local_index:
+                block = Block(
+                    index=block_index,
+                    timestamp=block_data["timestamp"],
+                    data=block_data["data"],
+                    previous_hash=block_data["previous_hash"]
+                )
+                self.blockchain.add_block(block)
 
     def start_election(self):
         logging.info("Node %s is starting an election for term %s", self.node_id, self.current_term + 1)
@@ -179,6 +216,20 @@ class RaftProtocol:
         # Send the request for vote to the target node
         threading.Thread(target=self.send_message, args=(node_id, request_vote_message)).start()
 
+    def request_sync_blockchain(self, target_node_id):
+        # Obtenir l'index du dernier bloc dans la blockchain locale
+        last_block_index = self.blockchain.get_last_block_index()
+
+        # Créer un message de demande de synchronisation avec l'index du dernier bloc
+        sync_request_message = {
+            "type": "sync_request",
+            "requester_id": self.node_id,
+            "last_block_index": last_block_index,
+        }
+
+        # Envoyer le message de demande de synchronisation au nœud cible
+        self.node.send_message(target_node_id, sync_request_message)
+
     def send_append_entries(self, node_id, entries):
         # Implement sending AppendEntries RPC to another node
         pass
@@ -192,6 +243,15 @@ class RaftProtocol:
         }
 
         self.node.broadcast_message(heartbeat_message)
+
+    def sync_blockchain(self, requesting_peer_id):
+        blocks_to_send = self.blockchain.blocks
+        sync_message = {
+            "type": "sync_blockchain",
+            "blocks": [block.to_dict() for block in blocks_to_send],
+        }
+        print("sending:", sync_message)
+        self.node.send_message(requesting_peer_id, sync_message)
 
     def run(self):
         while True:

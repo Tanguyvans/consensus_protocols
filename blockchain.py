@@ -24,6 +24,14 @@ class Blockchain:
         for block in self.blocks:
             print(block)
 
+    def get_last_block_index(self):
+        # Obtenir l'index du dernier bloc dans la blockchain
+        if self.blocks:
+            return self.blocks[-1].index
+        else:
+            # Si la blockchain est vide, retourner -1
+            return -1
+
 if __name__ == "__main__": 
     blockchain = Blockchain()
     blockchain.add_genesis_block("Initial data for federated learning")

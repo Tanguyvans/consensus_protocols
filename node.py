@@ -79,7 +79,7 @@ class Node:
             threading.Thread(target=self.handle_message, args=(client_socket,)).start()
 
     def handle_message(self, client_socket):
-        data = client_socket.recv(1024)
+        data = client_socket.recv(2048)
         message = json.loads(data.decode())
         self.consensus_protocol.handle_message(message)
 
@@ -99,10 +99,15 @@ class Node:
             signed_message["signature"] = self.sign_message(signed_message)
             signed_message["id"] = self.node_id
 
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect(peer_address)
-            client_socket.send(json.dumps(signed_message).encode())
-            client_socket.close()
+            try:
+                # Essayez de vous connecter avec un délai
+                with socket.create_connection(peer_address, timeout=5) as client_socket:
+                    # Envoyer le message signé
+                    client_socket.send(json.dumps(signed_message).encode())
+            except ConnectionRefusedError:
+                pass
+            except Exception as e:
+                pass
         else:
             print(f"Peer {peer_id} not found.")
 
