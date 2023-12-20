@@ -7,16 +7,6 @@ class Block:
         self.timestamp = timestamp
         self.data = data
         self.previous_hash = previous_hash
-
-    def to_dict(self):
-        # Convertissez les attributs du bloc en un dictionnaire
-        return {
-            "index": self.index,
-            "timestamp": self.timestamp,
-            "data": self.data,
-            "previous_hash": self.previous_hash,
-            "current_hash": self.current_hash
-        }
     
     @property
     def current_hash(self):
